@@ -114,6 +114,7 @@ install_packages
 # -------------- plank auto-start ---------------
 echo "👤 detected user: $real_user"
 echo "📂 target directory: $autostart_dir"
+sleep 2
 
 # create the autostart dir if missing
 mkdir -p "$autostart_dir"
@@ -144,9 +145,11 @@ EOF
     chown "$real_user:$real_user" "$plank_desktop"
     chmod 644 "$plank_desktop"
     echo "✅ plank autostart file created at $plank_desktop Enjoy"
+    sleep 2
 fi
 
 echo "⚙️ ready... brother, plank will now start automatically on login for $real_user"
+sleep 2
 
 # -------------- required kernel flags for zswap + xanmod ---------------
 params=(
@@ -164,7 +167,7 @@ params=(
 )
 
 echo "🌀 checking grub parameters..."
-
+sleep 2
 current=$(grep -oP '(?<=GRUB_CMDLINE_LINUX_DEFAULT=")[^"]*' "$grub_file")
 updated="$current"
 
@@ -178,43 +181,59 @@ if [ "$updated" != "$current" ]; then
     echo "🔧 updating grub parameters..."
     sudo sed -i "s|GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"$updated\"|" "$grub_file"
     echo "✅ grub updated with missing parameters"
+    sleep 2
 else
     echo "✔️ all parameters already present"
+    sleep 2
 fi
 
 echo "🧠 checking for zsmalloc in initramfs modules..."
+sleep 2
+
 if ! grep -q "^zsmalloc" "$initramfs_mod" 2>/dev/null; then
     echo "zsmalloc" | sudo tee -a "$initramfs_mod" >/dev/null
     echo "✅ added zsmalloc to $initramfs_mod"
+    sleep 2
 else
     echo "✔️ zsmalloc already present"
+    sleep 2
 fi
 
 echo "⚙️ rebuilding grub and initramfs..."
+sleep 2
+
 sudo update-grub >/dev/null 2>&1 && echo "grub updated"
 
 echo "🎯 done — reboot to activate zswap changes"
+sleep 2
 
 # ------------- zsmalloc tweak ---------------
 echo "🧠 zsmalloc + zswap + zram optimization for linux mint"
 echo "🧠 checking $module in $file..."
+sleep 2
 
 echo "🧠 checking $module in $file..."
+sleep 2
+
 if grep -q "^$module" "$file" 2>/dev/null; then
     echo "✔️ $module already present — nothing to do."
+    sleep 2
 else
     echo "$module" | sudo tee -a "$file" >/dev/null
     echo "✅ added $module to $file"
     echo "⚙️ rebuilding initramfs..."
     sudo update-initramfs -u -k all && echo "initramfs rebuilt successfully."
+    sleep 2
 fi
 
 echo "🎯 done — reboot to ensure $module loads early."
 lsmod | grep zsmalloc || echo "ℹ️ will load after reboot"
+sleep 2
 
 # ------------- ZRAM tweak ---------------
 echo
 echo "💾 setting up zram swap..."
+sleep 2
 
 sudo modprobe zram
 
@@ -226,13 +245,16 @@ sudo mkswap /dev/zram0 >/dev/null
 sudo swapon /dev/zram0
 
 echo "✅ zram active — $(grep zram /proc/swaps)"
+sleep 2
 
 # ------------- ZSWAP tweak ---------------
 echo
 echo "⚙️ enabling zswap..."
+sleep 2
 
 sudo dmesg | grep -i zswap || true
 cat /sys/module/zswap/parameters/max_pool_percent 2>/dev/null || echo "zswap not active yet"
+sleep 2
 
 # patch grub cleanly without line breaks
 sudo sed -i 's/^\s*GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 zswap.enabled=1 zswap.compressor=zstd zswap.max_pool_percent=25"/' /etc/default/grub
@@ -240,14 +262,18 @@ sudo sed -i 's/^\s*GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAUL
 if [ -d /sys/firmware/efi ]; then
     echo "UEFI system — updating grub..."
     sudo grub-mkconfig -o /boot/efi/EFI/ubuntu/grub.cfg 2>/dev/null || sudo update-grub
+    sleep 2
 else
     echo "Legacy BIOS — updating grub..."
+    sleep 2
     sudo update-grub
 fi
 
 # ------------- FSTRIM tweak ---------------
 echo
 echo "🧹 setting up daily fstrim..."
+sleep 2
+
 sudo mkdir -p /etc/systemd/system/fstrim.timer.d
 cat <<EOF | sudo tee /etc/systemd/system/fstrim.timer.d/override.conf >/dev/null
 [Timer]
@@ -267,6 +293,7 @@ sudo systemctl status fstrim.timer --no-pager || true
 echo
 sudo dmesg | grep -i zswap | tail -n 5 || echo "zswap will activate after reboot"
 echo "✅ all done — reboot to enjoy compressed swap and faster io"
+sleep 2
 
 # ------------- WIFI tweak ---------------
 sudo tee /etc/NetworkManager/conf.d/wifi-powersave.conf <<EOF
@@ -297,6 +324,7 @@ df -h /tmp
 
 cat /proc/sys/vm/dirty_ratio
 cat /proc/sys/vm/dirty_background_ratio
+sleep 2
 
 # create a sysctl override
 # echo "vm.swappiness=30" | sudo tee /etc/sysctl.d/7-swappiness.conf
@@ -327,6 +355,7 @@ fi
 
 echo "detected ram: ${ram_gb}gb"
 echo "creating ${swapsize}gb swap, swappiness=${swappy}"
+sleep 2
 
 sudo swapoff -a 2>/dev/null
 sudo fallocate -l ${swapsize}G $swapfile
@@ -342,6 +371,7 @@ sudo sysctl vm.swappiness=$swappy
 echo "vm.swappiness = $swappy" | sudo tee -a /etc/sysctl.conf >/dev/null
 
 echo "swap and swappiness tuned ✅"
+sleep 2
 
 # apply immediately
 sudo sysctl --system
@@ -355,9 +385,12 @@ cat /proc/sys/vm/dirty_expire_centisecs
 cat /proc/sys/vm/dirty_writeback_centisecs
 swapon --show
 free -h
+sleep 2
 
 # ------------- firewall ---------------
 echo -e "\n🛡️ Configuring firewall (ufw)..."
+sleep 2
+
 # enable ufw if not active
 if ! sudo ufw status | grep -q "Status: active"; then
     echo "[+] Enabling UFW..."
@@ -414,16 +447,20 @@ sleep 3
 # clone Gogh repo if it doesn't exist
 if [[ ! -d "$GOGH_DIR" ]]; then
     echo "Cloning Gogh repository..."
+    sleep 2
+
     git clone https://github.com/Mayccoll/Gogh.git "$GOGH_DIR"
 fi
 
 # check that theme exists
 if [[ ! -f "$THEME_YAML" ]]; then
     echo "Error: Catppuccin Frappé.yml not found in $GOGH_DIR/themes/"
-    exit 1
+    sleep 2
+    
 fi
 
 echo "Applying Catppuccin Frappe theme..."
+sleep 2
 
 # read colors from YAML
 declare -A colors
@@ -523,27 +560,34 @@ sudo sed -i 's/weekly/daily/g' /etc/logrotate.conf
 # -------------- samba tweaks -------------- 
 echo "👤 detected user: $real_user"
 echo "🏠 user home: $user_home"
+sleep 2
 
 # install samba packages
 echo "🌀 updating and installing samba packages..."
+sleep 2
+
 apt update
 apt install -y samba samba-common-bin smbclient
 
 # enable and start samba services
 echo "⚙️ enabling and starting samba services..."
+sleep 2
+
 systemctl enable --now smbd nmbd
 systemctl status smbd nmbd --no-pager
 
 # create public share
 share_dir="/srv/samba/public"
 echo "📂 creating public share at $share_dir"
+sleep 2
+
 mkdir -p "$share_dir"
 chown -R "$real_user:$real_user" "$share_dir"
 chmod -R 0777 "$share_dir"
 ls -ld "$share_dir"
 
 # set samba password for real user
-echo "🔑 setting samba password for $real_user"
+echo "🔑 Enter new samba password for $real_user"
 smbpasswd -a "$real_user"
 
 # ensure permissions and restart services
@@ -552,16 +596,21 @@ systemctl restart smbd nmbd
 
 # allow firewall access
 echo "🛡️ updating ufw for samba..."
+sleep 2
+
 ufw allow Samba
 
 # test samba configuration
 echo "🧪 testing samba config..."
+sleep 2
+
 testparm
 
 # list shares for verification
 smbclient -L localhost -U "$real_user"
 
 echo "✅ samba setup complete — public share ready at $share_dir"
+sleep 2
 
 # -------------- Nix package manager -------------- 
 sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install) –daemon
@@ -597,6 +646,7 @@ mkShell {
 EOF
 
 echo "shell.nix created at $SHELL_NIX"
+sleep 2
 
 # install packages globally for permanent availability
 nix-env -iA nixpkgs.hello nixpkgs.htop nixpkgs.neofetch nixpkgs.duf nixpkgs.pipx
@@ -609,6 +659,7 @@ duf
 
 # -------------- zsh + oh-my-zsh setup -------------- 
 echo "🚀 starting zsh + oh-my-zsh setup..."
+sleep 2
 
 # ensure zsh is installed
 if ! command -v zsh >/dev/null 2>&1; then
@@ -625,9 +676,12 @@ fi
 # install oh-my-zsh if missing
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     echo "🌐 installing oh-my-zsh..."
+    sleep 2
+
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 else
     echo "✅ oh-my-zsh already installed."
+    sleep 2
 fi
 
 # set custom dir var
@@ -639,6 +693,7 @@ if [ ! -d "$ZSH_CUSTOM/themes/powerlevel10k" ]; then
     git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$ZSH_CUSTOM/themes/powerlevel10k"
 else
     echo "✅ powerlevel10k already installed."
+    sleep 2
 fi
 
 # install plugins
@@ -651,18 +706,25 @@ for plugin in "${!plugins[@]}"; do
     dest="$ZSH_CUSTOM/plugins/$plugin"
     if [ ! -d "$dest" ]; then
         echo "🔌 installing $plugin..."
+        sleep 2
+
         git clone "${plugins[$plugin]}" "$dest"
     else
         echo "✅ $plugin already installed."
+        sleep 2
     fi
 done
 
 # install fzf and autojump
 echo "📦 ensuring fzf and autojump installed..."
+sleep 2
+
 sudo apt install fzf autojump fonts-powerline -y
 
 # write custom .zshrc
 echo "🧾 writing new ~/.zshrc..."
+sleep 2
+
 cat <<'EOF' >~/.zshrc
 # tolga's zsh setup
 
@@ -890,6 +952,7 @@ sudo chsh -s /bin/zsh $USER
 echo $SHELL
 
 echo "✨ setup complete."
+sleep 2
 
 # back up configs
 mkdir -p ~/ohmyzsh-backup
@@ -904,3 +967,4 @@ cp ~/.zsh_history ~/ohmyzsh-backup/
 
 echo "💡 restart your terminal or run 'exec zsh' then 'p10k configure' to finish style setup."
 echo "💡 Or simetimes log out and login again"
+sleep 2
