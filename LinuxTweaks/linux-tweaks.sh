@@ -57,7 +57,7 @@ install_packages() {
         7zip-rar adwaita-qt catfish doublecmd-gtk fonts-crosextra-caladea fonts-crosextra-carlito
         fonts-firacode fonts-noto-unhinted fonts-ubuntu-classic fortune-mod git grub2-theme-mint helix
         linux-hwe-6.14-headers-6.14.0-33 linux-hwe-6.14-tools-6.14.0-33 lolcat nala preload
-        numlockx okular pavucontrol plank python3-dnspython qt5ct rar samba
+        numlockx okular pavucontrol plank python3-dnspython qt5ct rar samba curl
         samba-ad-provision samba-dsdb-modules samba-vfs-modules sublime-merge sublime-text synaptic
         tdb-tools variety vlc wsdd xanmod-kernel-manager yad fonts-noto-mono fonts-noto-color-emoji
     )
@@ -498,16 +498,44 @@ echo "✅ samba setup complete — public share ready at $share_dir"
 
 
 # -------------- Nix package manager -------------- 
-sudo apt install -y curl
 sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install) –daemon
 sudo systemctl enable nix-daemon.service --now
 sudo systemctl status nix-daemon.service --no-pager -n 10
 
-# Restart konsole and then:
-. /etc/profile.d/nix.sh
-nix-shell -p hello
+# ensure nix profile is loaded
+if [ -f /etc/profile.d/nix.sh ]; then
+    . /etc/profile.d/nix.sh
+fi
+
+# define shell.nix path
+SHELL_NIX="$user_home/shell.nix"
+
+# write shell.nix
+cat > "$SHELL_NIX" <<'EOF'
+with import <nixpkgs> {};
+
+mkShell {
+  buildInputs = [
+    duf
+    hello
+    htop
+    neofetch
+    pipx
+  ];
+
+  shellHook = ''
+    echo "welcome to nix shell with my tools"
+  '';
+}
+EOF
+
+echo "shell.nix created at $SHELL_NIX"
+
+# install packages globally for permanent availability
+nix-env -iA nixpkgs.hello nixpkgs.htop nixpkgs.neofetch nixpkgs.duf nixpkgs.pipx
+
+# verify installation
 nix --version
 hello
-
-# Install globally:
-nix-env -iA nixpkgs.htop nixpkgs.neofetch nixpkgs.duf nixpkgs.pipx
+neofetch
+duf
