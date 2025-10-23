@@ -1,8 +1,8 @@
 #!/bin/bash
-# Author :  Tolga Erok
-# Created:  23/10/25
 # LinuxTweaks for LinuxMint
 # Version:  1.0a
+# Author :  Tolga Erok
+# Created:  23/10/25
 
 BLUE="\033[0;34m"
 NC="\033[0m"
