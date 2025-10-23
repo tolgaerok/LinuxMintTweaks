@@ -1,5 +1,5 @@
 # LinuxTweaks — Tolga Style
-## 23/10/2025
+23/10/2025
 
 *logical calm surgical tweaks for a faster cleaner linux experience*
 
