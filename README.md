@@ -1,4 +1,5 @@
 # LinuxTweaks — Tolga Style
+## 23/10/2025
 
 *logical calm surgical tweaks for a faster cleaner linux experience*
 
@@ -85,6 +86,12 @@ this script became my way of making linux breathe a little easier.
 
   ```bash
   swapon --show
+  free -h
+  df -h /tmp
+  lsmod | grep zsmalloc  
+  systemctl status tmp.mount --no-pager
+  sudo systemctl status fstrim.timer --no-pager  
+  iwconfig  
   ```
 * and breathe — your system just got smarter.
 
