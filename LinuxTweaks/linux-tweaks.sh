@@ -1,6 +1,13 @@
 #!/bin/bash
-# 23/10/25
-# LinuxTweaks tolga style — logical, surgical, calm for all brother's
+# Author :  Tolga Erok
+# Created:  23/10/25
+# LinuxTweaks for LinuxMint
+# Version:  1.0a
+
+BLUE="\033[0;34m"
+NC="\033[0m"
+RED="\033[0;31m"
+YELLOW="\033[1;33m"
 
 real_user=${SUDO_USER:-$(logname)}
 user_home=$(eval echo "~$real_user")
@@ -496,7 +503,6 @@ smbclient -L localhost -U "$real_user"
 
 echo "✅ samba setup complete — public share ready at $share_dir"
 
-
 # -------------- Nix package manager -------------- 
 sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install) –daemon
 sudo systemctl enable nix-daemon.service --now
@@ -524,7 +530,7 @@ mkShell {
   ];
 
   shellHook = ''
-    echo "welcome to nix shell with my tools"
+    echo "welcome to nix shell with my tools"
   '';
 }
 EOF
@@ -539,3 +545,300 @@ nix --version
 hello
 neofetch
 duf
+
+# -------------- zsh + oh-my-zsh setup -------------- 
+echo "🚀 starting zsh + oh-my-zsh setup..."
+
+# ensure zsh is installed
+if ! command -v zsh >/dev/null 2>&1; then
+    echo "📦 installing zsh..."
+    sudo apt update && sudo apt install zsh git curl -y
+fi
+
+# set zsh as default shell if not already
+if [ "$SHELL" != "$(which zsh)" ]; then
+    echo "⚙️ setting zsh as default shell..."
+    chsh -s "$(which zsh)"
+fi
+
+# install oh-my-zsh if missing
+if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    echo "🌐 installing oh-my-zsh..."
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+else
+    echo "✅ oh-my-zsh already installed."
+fi
+
+# set custom dir var
+ZSH_CUSTOM=${ZSH_CUSTOM:-~/.oh-my-zsh/custom}
+
+# install powerlevel10k
+if [ ! -d "$ZSH_CUSTOM/themes/powerlevel10k" ]; then
+    echo "💎 installing powerlevel10k theme..."
+    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$ZSH_CUSTOM/themes/powerlevel10k"
+else
+    echo "✅ powerlevel10k already installed."
+fi
+
+# install plugins
+declare -A plugins=(
+    ["zsh-autosuggestions"]="https://github.com/zsh-users/zsh-autosuggestions"
+    ["zsh-syntax-highlighting"]="https://github.com/zsh-users/zsh-syntax-highlighting"
+)
+
+for plugin in "${!plugins[@]}"; do
+    dest="$ZSH_CUSTOM/plugins/$plugin"
+    if [ ! -d "$dest" ]; then
+        echo "🔌 installing $plugin..."
+        git clone "${plugins[$plugin]}" "$dest"
+    else
+        echo "✅ $plugin already installed."
+    fi
+done
+
+# install fzf and autojump
+echo "📦 ensuring fzf and autojump installed..."
+sudo apt install fzf autojump fonts-powerline -y
+
+# write custom .zshrc
+echo "🧾 writing new ~/.zshrc..."
+cat <<'EOF' >~/.zshrc
+# tolga's zsh setup
+
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME="powerlevel10k/powerlevel10k"
+
+plugins=(
+  autojump
+  colored-man-pages
+  extract
+  fzf
+  git
+  sudo
+  zsh-autosuggestions
+  zsh-syntax-highlighting
+)
+
+source $ZSH/oh-my-zsh.sh
+
+# instant prompt for speed
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+HISTFILE=~/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+setopt hist_ignore_all_dups share_history
+
+alias ll='ls -alF --color=auto'
+alias la='ls -A --color=auto'
+alias l='ls -CF --color=auto'
+alias cls='clear'
+alias please='sudo $(fc -ln -1)'
+alias update='sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y'
+
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#555'
+source ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+export LANG=en_US.UTF-8
+export PATH="$HOME/.local/bin:$PATH"
+
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+typeset -g POWERLEVEL9K_MODE=nerdfont-v3
+
+alias ls='eza --icons=always --group-directories-first --color=auto'
+alias ll='eza -lah --icons=always --group-directories-first --color=auto'
+alias la='eza -a --icons=always --group-directories-first --color=auto'
+
+# ------------------------- MY ALIAS ---------------------------------------------------------
+YELLOW="\033[1;33m"
+BLUE="\033[0;34m"
+RED="\033[0;31m"
+NC="\033[0m"
+
+perm() {
+MEGA_DIR="/home/tolga/Documents/MEGA"
+USER="tolga"
+GROUP="tolga"
+
+notify() {
+  /usr/bin/notify-send "MEGAsync Setup" "$1" \
+    --app-name="MEGA Service" \
+    -i mega
+  echo -e "\e[1;32m[✔] $1\e[0m"
+}
+
+echo -e "\e[1;34m=== MEGA Directory Preparation ===\e[0m"
+
+# Step 1: Create directory if missing
+if [ ! -d "$MEGA_DIR" ]; then
+  mkdir -p "$MEGA_DIR"
+  notify "Created MEGA directory at $MEGA_DIR"
+else
+  notify "MEGA directory already exists"
+fi
+
+# fix ownership
+sudo chown -R "$USER:$GROUP" "$MEGA_DIR"
+notify "Ownership set to $USER:$GROUP"
+
+# fix permissions
+chmod -R 774 "$MEGA_DIR"
+notify "Permissions locked down to (774)"
+
+echo -e "\e[1;34m=== Preparation Complete brother ===\e[0m"
+notify "MEGA folder is ready for sync! Enjoy"
+}
+
+check-io(){
+#!/usr/bin/env bash
+# Tolga Erok
+# Purpose: Check & report SSD/NVMe schedulers in style
+
+echo -e "\e[1;34m=== IO Scheduler Audit: Aurora, Fedora, NixOS && Mint ===\e[0m"
+
+for dev in /sys/block/*; do
+    name=$(basename "$dev")
+    sched_file="$dev/queue/scheduler"
+
+    # Skip loopback, RAM, CD-ROM etc.
+    [[ ! -f "$sched_file" ]] && continue
+
+    sched=$(cat "$sched_file")
+    active=$(echo "$sched" | grep -oP '\[\K[^\]]+')
+
+    # Highlight if active scheduler is not none
+    if [[ "$active" != "none" ]]; then
+        echo -e "\e[1;31m$name: active scheduler is '$active', should be none\e[0m"
+    else
+        echo -e "\e[1;32m$name: active scheduler is 'none' ✅\e[0m"
+    fi
+done
+
+echo -e "\e[1;34m=== Audit Complete ===\e[0m"
+}
+
+upt() {
+  # Read uptime value (seconds) from /proc/uptime, strip the decimal part
+  uptime=$(cut -d ' ' -f 1 /proc/uptime | cut -d '.' -f 1)
+
+  # Calculate days, hours, and minutes
+  d=$((uptime / 86400))
+  h=$(((uptime % 86400) / 3600))
+  m=$(((uptime % 3600) / 60))
+
+  # Print formatted uptime
+  printf "    🕒 Uptime: %d day%s %dh %dm\n" $d $( [ $d -ne 1 ] && echo "s" || echo "" ) $h $m
+  echo ""
+}
+
+alias io="
+for d in /sys/block/sd*; do
+    echo -n \"\$d: \"
+    cat \"\$d/queue/scheduler\" | sed 's/.*\\[\\(.*\\)\\].*/\\1/'
+done
+"
+# --- YAD Helper Function ---#
+fancy() {
+  yad --center --width=400 --height=120 --window-icon=dialog-information --borders=10 \
+    --title="LinuxTweaks NVIDIA Installer" --text="$1" --button=gtk-ok:0 --no-buttons &
+  YAD_PID=$!
+  bash -c "$2"
+  kill $YAD_PID
+}
+
+cake2() {
+iface=$(nmcli -t -f DEVICE,STATE device | awk -F: '$2=="connected" && $1!="lo" {print $1; exit}')
+if [ -z "$iface" ]; then
+    echo "no active non-loopback interface found"
+    exit 1
+fi
+
+# determine RTT and speed
+if [[ "$iface" =~ ^wl ]]; then
+    rtt=50
+    speed=$(iw dev "$iface" link 2>/dev/null | awk '/tx bitrate/ {print $3}')
+    [ -z "$speed" ] && speed=100
+else
+    rtt=5
+    speed=$(ethtool "$iface" 2>/dev/null | awk -F: '/Speed/ {gsub(/[^0-9]/,"",$2); print $2}')
+    [ -z "$speed" ] && speed=1000
+fi
+
+echo "applying CAKE to $iface: bandwidth=${speed}Mbit rtt=${rtt}ms"
+sudo tc qdisc replace dev "$iface" root cake bandwidth "${speed}Mbit" diffserv3 triple-isolate nonat nowash no-ack-filter split-gso rtt "${rtt}ms" raw overhead 0
+tc -s qdisc show dev "$iface"
+}
+
+alias zramstatus='sudo systemctl status linux-tweaks-zram.service --no-pager; swapon --show; free -h'
+
+fancy_progress() {
+  (
+    # total steps you plan to run, or just loop for time-consuming task
+    echo "0"  # start at 0%
+    
+    # run your command and update progress in real-time
+    "$@" | while IFS= read -r line; do
+      echo "$line"  # you can send numeric progress if command outputs it
+      sleep 0.1     # optional, smooth animation
+    done
+  ) | yad --progress \
+         --title="LinuxTweaks Task" \
+         --width=400 \
+         --height=120 \
+         --window-icon=dialog-information \
+         --auto-close \
+         --percentage=0 \
+         --text="Running, please wait..." 
+}
+
+fancy_progress bash -c '
+for i in {1..8}; do
+  echo $i
+  sleep 0.1
+done
+'
+clear && echo && fortune | sed "s/^/    /" | lolcat && echo && upt
+EOF
+
+sudo apt install eza -y 
+
+mkdir -p ~/.local/share/fonts
+cd ~/.local/share/fonts
+
+# download all four MesloLGS Nerd Fonts
+wget -q https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf
+wget -q https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf
+wget -q https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf
+wget -q https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf
+
+fc-cache -fv
+
+sudo mkdir -p /usr/share/fonts/NerdFonts
+cd /usr/share/fonts/NerdFonts
+sudo wget https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/Meslo.zip
+sudo unzip Meslo.zip
+sudo fc-cache -fv
+
+exec zsh
+sudo chsh -s /bin/zsh $USER
+echo $SHELL
+
+echo "✨ setup complete."
+
+# back up configs
+mkdir -p ~/ohmyzsh-backup
+cp -r ~/.oh-my-zsh ~/ohmyzsh-backup/
+cp ~/.zshrc ~/ohmyzsh-backup/
+cp ~/.zsh_history ~/ohmyzsh-backup/
+
+# backup restore
+#cp -r ~/ohmyzsh-backup/.oh-my-zsh ~/
+#cp ~/ohmyzsh-backup/.zshrc ~/
+#cp ~/ohmyzsh-backup/.zsh_history ~/
+
+echo "💡 restart your terminal or run 'exec zsh' then 'p10k configure' to finish style setup."
+echo "💡 Or simetimes log out and login again"
