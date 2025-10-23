@@ -1,14 +1,23 @@
 #!/bin/bash
 # 23/10/25
-# LinuxTweaks tolga style — logical, surgical, calm, brother
+# LinuxTweaks tolga style — logical, surgical, calm... enjoy brother
 
+real_user=${SUDO_USER:-$(logname)}
+user_home=$(eval echo "~$real_user")
+autostart_dir="$user_home/.config/autostart"
+plank_desktop="$autostart_dir/plank.desktop"
+file="/etc/initramfs-tools/modules"
 grub_file="/etc/default/grub"
 initramfs_mod="/etc/initramfs-tools/modules"
-file="/etc/initramfs-tools/modules"
 module="zsmalloc"
 
+# -------------- ensure script runs as root ---------------
+if [[ $EUID -ne 0 ]]; then
+    echo "⚠️  please run this with sudo"
+    exit 1
+fi
+
 # -------------- install packages ---------------
-sudo apt update -y
 sudo apt-get install -y \
     7zip-rar adwaita-qt catfish doublecmd-gtk fonts-crosextra-caladea fonts-crosextra-carlito \
     fonts-firacode fonts-noto-unhinted fonts-ubuntu-classic fortune-mod git grub2-theme-mint helix \
@@ -16,6 +25,40 @@ sudo apt-get install -y \
     numlockx okular pavucontrol plank python3-dnspython qt5ct rar samba \
     samba-ad-provision samba-dsdb-modules samba-vfs-modules sublime-merge sublime-text synaptic \
     tdb-tools variety vlc wsdd xanmod-kernel-manager yad fonts-noto-mono fonts-noto-color-emoji
+
+# -------------- plank auto-start ---------------
+echo "👤 detected user: $real_user"
+echo "📂 target directory: $autostart_dir"
+
+mkdir -p "$autostart_dir"
+chown -R "$real_user:$real_user" "$autostart_dir"
+
+if [[ -f "$plank_desktop" ]]; then
+    echo "✔️ plank autostart already exists at $plank_desktop brother"
+else
+    echo "🌀 creating plank autostart entry brother, relax..."
+    cat <<EOF > "$plank_desktop"
+[Desktop Entry]
+Name=Plank
+GenericName=Dock
+Comment=Stupidly simple.
+Categories=Utility;
+Type=Application
+Exec=plank
+Icon=plank
+Terminal=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Hidden=false
+Name[en_AU]=Plank
+X-GNOME-Autostart-Delay=0
+EOF
+    chown "$real_user:$real_user" "$plank_desktop"
+    chmod 644 "$plank_desktop"
+    echo "✅ plank autostart file created at $plank_desktop Enjoy"
+fi
+
+echo "⚙️ ready... brother, plank will now start automatically on login for $real_user"
 
 # -------------- required kernel flags for zswap + xanmod ---------------
 params=(
