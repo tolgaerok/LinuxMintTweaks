@@ -27,6 +27,9 @@ fi
 # -------------- speed things up alittle ---------------
 sudo systemctl disable NetworkManager-wait-online.service
 sudo systemctl mask NetworkManager-wait-online.service
+sudo mkdir -p /etc/systemd/system.conf.d
+echo -e "[Manager]\nDefaultTimeoutStopSec=5s" | sudo tee /etc/systemd/system.conf.d/timeout.conf
+sudo systemctl daemon-reload
 
 # -------------- Icon setup ---------------
 icon_URL="https://raw.githubusercontent.com/tolgaerok/linuxtweaks/main/MY_PYTHON_APP/images/LinuxTweak.png"
