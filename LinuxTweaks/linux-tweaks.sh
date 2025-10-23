@@ -1,6 +1,6 @@
 #!/bin/bash
 # 23/10/25
-# LinuxTweaks tolga style — logical, surgical, calm, brother
+# LinuxTweaks tolga style — logical, surgical, calm for all brother's
 
 real_user=${SUDO_USER:-$(logname)}
 user_home=$(eval echo "~$real_user")
@@ -17,14 +17,85 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-# -------------- install packages ---------------
-sudo apt-get install -y \
-    7zip-rar adwaita-qt catfish doublecmd-gtk fonts-crosextra-caladea fonts-crosextra-carlito \
-    fonts-firacode fonts-noto-unhinted fonts-ubuntu-classic fortune-mod git grub2-theme-mint helix \
-    linux-hwe-6.14-headers-6.14.0-33 linux-hwe-6.14-tools-6.14.0-33 lolcat nala \
-    numlockx okular pavucontrol plank python3-dnspython qt5ct rar samba \
-    samba-ad-provision samba-dsdb-modules samba-vfs-modules sublime-merge sublime-text synaptic \
-    tdb-tools variety vlc wsdd xanmod-kernel-manager yad fonts-noto-mono fonts-noto-color-emoji
+# -------------- Icon setup ---------------
+icon_URL="https://raw.githubusercontent.com/tolgaerok/linuxtweaks/main/MY_PYTHON_APP/images/LinuxTweak.png"
+icon_dir="$user_home/.config"
+icon_path="$icon_dir/LinuxTweak.png"
+DEFAULT_ART="$icon_path"
+mkdir -p "$icon_dir"
+wget -q -O "$icon_path" "$icon_URL"
+chmod 644 "$icon_path"
+
+if [ ! -f "$DEFAULT_ART" ]; then
+    convert -size 300x300 xc:gray "$DEFAULT_ART" 2>/dev/null || touch "$DEFAULT_ART"
+fi
+
+# Intro text
+intro=$(
+cat <<'EOF'
+ LinuxTweaks LinuxMint tweaks
+
+🟢 TO-DO-LATER
+💡 Minimal hassle, maximum performance
+🟢 Install in progress...
+
+[+] ============================================== [+]
+EOF
+)
+
+downloading=$(
+cat <<'EOF'
+ LinuxTweaks LinuxMint tweaks live progress
+🟢 Install in progress...
+[+] ============================================== [+]
+EOF
+)
+
+install_packages() {
+    log="/tmp/linux_tweaks_apt.log"
+    packages=(
+        7zip-rar adwaita-qt catfish doublecmd-gtk fonts-crosextra-caladea fonts-crosextra-carlito
+        fonts-firacode fonts-noto-unhinted fonts-ubuntu-classic fortune-mod git grub2-theme-mint helix
+        linux-hwe-6.14-headers-6.14.0-33 linux-hwe-6.14-tools-6.14.0-33 lolcat nala preload
+        numlockx okular pavucontrol plank python3-dnspython qt5ct rar samba
+        samba-ad-provision samba-dsdb-modules samba-vfs-modules sublime-merge sublime-text synaptic
+        tdb-tools variety vlc wsdd xanmod-kernel-manager yad fonts-noto-mono fonts-noto-color-emoji
+    )
+
+    echo " starting installation..." > "$log"
+
+    # create a pipe
+    pipe="/tmp/linux_tweaks_pipe.log"
+    [[ -p $pipe ]] || mkfifo "$pipe"
+
+    # start yad
+    yad --title="🟢  LinuxTweaks LinuxMint tweaks live progress" \
+        --image="$icon_path" \
+        --text="$intro" \
+        --width=750 --height=400 \
+        --text-info --tail --fontname="monospace" \
+        --wrap --center --button=gtk-cancel:1 < "$pipe" &
+    yad_pid=$!
+
+    # output to pipe
+    {
+        sudo apt-get update -y 2>&1 | tee -a "$log"
+        sudo apt-get install -y "${packages[@]}" 2>&1 | tee -a "$log"
+        echo "✅ installation done — check $log for details" | tee -a "$log"
+
+        # countdown inside the pipe
+        for i in 3 2 1; do
+            echo "window closing in $i..." | tee -a "$log"
+            sleep 1
+        done
+    } > "$pipe"
+
+    sleep 0.5
+    kill $yad_pid 2>/dev/null
+    rm -f "$pipe"
+}
+
+install_packages
 
 # -------------- plank auto-start ---------------
 echo "👤 detected user: $real_user"
@@ -111,35 +182,58 @@ sudo update-grub >/dev/null 2>&1 && echo "grub updated"
 echo "🎯 done — reboot to activate zswap changes"
 
 # ------------- zsmalloc tweak ---------------
+echo "🧠 zsmalloc + zswap + zram optimization for linux mint"
 echo "🧠 checking $module in $file..."
 
+echo "🧠 checking $module in $file..."
 if grep -q "^$module" "$file" 2>/dev/null; then
     echo "✔️ $module already present — nothing to do."
 else
     echo "$module" | sudo tee -a "$file" >/dev/null
     echo "✅ added $module to $file"
     echo "⚙️ rebuilding initramfs..."
-    sudo update-initramfs -uk all && echo "initramfs rebuilt successfully."
+    sudo update-initramfs -u -k all && echo "initramfs rebuilt successfully."
 fi
 
 echo "🎯 done — reboot to ensure $module loads early."
-lsmod | grep zsmalloc
+lsmod | grep zsmalloc || echo "ℹ️ will load after reboot"
 
-sudo update-initramfs -uk all && echo "initramfs and zram rebuilt"
+# ------------- ZRAM tweak ---------------
+echo
+echo "💾 setting up zram swap..."
+
+sudo modprobe zram
+
+# safer writes using sudo tee
+echo lz4 | sudo tee /sys/block/zram0/comp_algorithm >/dev/null 2>&1 || echo zstd | sudo tee /sys/block/zram0/comp_algorithm >/dev/null 2>&1
+size_bytes=$(( $(grep MemTotal /proc/meminfo | awk '{print $2}') * 1024 / 2 ))
+echo $size_bytes | sudo tee /sys/block/zram0/disksize >/dev/null
+sudo mkswap /dev/zram0 >/dev/null
+sudo swapon /dev/zram0
+
+echo "✅ zram active — $(grep zram /proc/swaps)"
 
 # ------------- ZSWAP tweak ---------------
-sudo dmesg | grep zswap
-cat /sys/module/zswap/parameters/max_pool_percent
-sudo sed -i 's/\s*GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 zswap.enabled=1 zswap.compressor=zstd 
+echo
+echo "⚙️ enabling zswap..."
 
-zswap.max_pool_percent=25"/' /etc/default/grub
+sudo dmesg | grep -i zswap || true
+cat /sys/module/zswap/parameters/max_pool_percent 2>/dev/null || echo "zswap not active yet"
+
+# patch grub cleanly without line breaks
+sudo sed -i 's/^\s*GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 zswap.enabled=1 zswap.compressor=zstd zswap.max_pool_percent=25"/' /etc/default/grub
 
 if [ -d /sys/firmware/efi ]; then
-    sudo grub-mkconfig -o /boot/efi/EFI/*/grub.cfg 2>/dev/null || sudo update-grub
+    echo "UEFI system — updating grub..."
+    sudo grub-mkconfig -o /boot/efi/EFI/ubuntu/grub.cfg 2>/dev/null || sudo update-grub
 else
-    sudo grub2-mkconfig -o /boot/grub2/grub.cfg 2>/dev/null || sudo update-grub
+    echo "Legacy BIOS — updating grub..."
+    sudo update-grub
 fi
 
+# ------------- FSTRIM tweak ---------------
+echo
+echo "🧹 setting up daily fstrim..."
 sudo mkdir -p /etc/systemd/system/fstrim.timer.d
 cat <<EOF | sudo tee /etc/systemd/system/fstrim.timer.d/override.conf >/dev/null
 [Timer]
@@ -147,12 +241,18 @@ OnCalendar=
 OnCalendar=daily
 EOF
 
+progress "rebuilding grub and initramfs" "update-grub && update-initramfs -u -k all"
+progress "setting up zram swap" "modprobe zram && mkswap /dev/zram0 && swapon /dev/zram0"
+progress "enabling daily fstrim" "systemctl enable fstrim.timer && systemctl restart fstrim.timer"
+
 sudo systemctl daemon-reload
 sudo systemctl enable fstrim.timer
 sudo systemctl restart fstrim.timer
-sudo systemctl status fstrim.timer --no-pager
-sudo dmesg | grep zswap | tail -n 5 || echo "zswap will be active after reboot"
-echo "⚙️ all set — reboot to activate zswap fully"
+sudo systemctl status fstrim.timer --no-pager || true
+
+echo
+sudo dmesg | grep -i zswap | tail -n 5 || echo "zswap will activate after reboot"
+echo "✅ all done — reboot to enjoy compressed swap and faster io"
 
 # ------------- WIFI tweak ---------------
 sudo tee /etc/NetworkManager/conf.d/wifi-powersave.conf <<EOF
@@ -185,7 +285,7 @@ cat /proc/sys/vm/dirty_ratio
 cat /proc/sys/vm/dirty_background_ratio
 
 # create a sysctl override
-echo "vm.swappiness=30" | sudo tee /etc/sysctl.d/7-swappiness.conf
+# echo "vm.swappiness=30" | sudo tee /etc/sysctl.d/7-swappiness.conf
 sudo tee /etc/sysctl.d/99-tuned-ssd.conf <<EOF
 vm.dirty_ratio = 28
 vm.dirty_background_ratio = 14
@@ -359,7 +459,7 @@ echo "🏠 user home: $user_home"
 
 # install samba packages
 echo "🌀 updating and installing samba packages..."
-apt update -y
+apt update
 apt install -y samba samba-common-bin smbclient
 
 # enable and start samba services
@@ -376,7 +476,7 @@ chmod -R 0777 "$share_dir"
 ls -ld "$share_dir"
 
 # set samba password for real user
-echo "🔑 Please set samba password for: $real_user"
+echo "🔑 setting samba password for $real_user"
 smbpasswd -a "$real_user"
 
 # ensure permissions and restart services
@@ -397,3 +497,17 @@ smbclient -L localhost -U "$real_user"
 echo "✅ samba setup complete — public share ready at $share_dir"
 
 
+# -------------- Nix package manager -------------- 
+sudo apt install -y curl
+sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install) –daemon
+sudo systemctl enable nix-daemon.service --now
+sudo systemctl status nix-daemon.service --no-pager -n 10
+
+# Restart konsole and then:
+. /etc/profile.d/nix.sh
+nix-shell -p hello
+nix --version
+hello
+
+# Install globally:
+nix-env -iA nixpkgs.htop nixpkgs.neofetch nixpkgs.duf nixpkgs.pipx
