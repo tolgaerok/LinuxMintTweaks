@@ -587,7 +587,8 @@ mkShell {
   ];
 
   shellHook = ''
-    echo "welcome to nix shell with my tools"
+    echo "              welcome to nix shell with my tools"
+    echo "    [+] ============================================== [+]"
   '';
 }
 EOF
