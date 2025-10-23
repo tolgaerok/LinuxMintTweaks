@@ -4,19 +4,19 @@
 # Author :  Tolga Erok
 # Created:  23/10/25
 
-BLUE="\033[0;34m"
-NC="\033[0m"
-RED="\033[0;31m"
-YELLOW="\033[1;33m"
+YELLOW="\e[33m"
+RESET="\e[0m"
 
 real_user=${SUDO_USER:-$(logname)}
 user_home=$(eval echo "~$real_user")
 autostart_dir="$user_home/.config/autostart"
-plank_desktop="$autostart_dir/plank.desktop"
 file="/etc/initramfs-tools/modules"
+GOGH_DIR="$user_home/Gogh"
 grub_file="/etc/default/grub"
 initramfs_mod="/etc/initramfs-tools/modules"
 module="zsmalloc"
+plank_desktop="$autostart_dir/plank.desktop"
+THEME_YAML="$GOGH_DIR/themes/Catppuccin Frappé.yml"
 
 # -------------- ensure script runs as root ---------------
 if [[ $EUID -ne 0 ]]; then
@@ -402,7 +402,60 @@ echo -e "\n[+]------------------------------------------------------------------
 sleep 3
 
 # ------------- Terminal themes use 94 ---------------
-bash -c  "$(wget -qO- https://git.io/vQgMr)"
+# bash -c  "$(wget -qO- https://git.io/vQgMr)"
+
+# clone Gogh repo if it doesn't exist
+if [[ ! -d "$GOGH_DIR" ]]; then
+    echo "Cloning Gogh repository..."
+    git clone https://github.com/Mayccoll/Gogh.git "$GOGH_DIR"
+fi
+
+# check that theme exists
+if [[ ! -f "$THEME_YAML" ]]; then
+    echo "Error: Catppuccin Frappé.yml not found in $GOGH_DIR/themes/"
+    exit 1
+fi
+
+echo "Applying Catppuccin Frappe theme..."
+
+# read colors from YAML
+declare -A colors
+
+while IFS=: read -r key value; do
+    key=$(echo "$key" | xargs)
+    value=$(echo "$value" | xargs | tr -d '"')
+    if [[ "$key" =~ ^color[0-9]+$ ]]; then
+        colors[$key]=$value
+    fi
+done < "$THEME_YAML"
+
+# apply colors using escape sequences
+for i in {0..15}; do
+    hex="${colors[color$(printf "%02d" $i)]}"
+    if [[ -n "$hex" ]]; then
+        r=$((16#${hex:1:2}))
+        g=$((16#${hex:3:2}))
+        b=$((16#${hex:5:2}))
+        printf "\e]4;%d;rgb:%02x/%02x/%02x\a" $i $r $g $b
+    fi
+done
+
+echo "Catppuccin Frappe theme applied successfully."
+
+echo -e "${YELLOW}Please open your terminal settings, go to Profiles, and change your current profile to 'Catppuccin Frappe'.${RESET}"
+echo
+read -p "Have you done this? Is the Catppuccin Frappe available? (y/N) " answer
+
+case "$answer" in
+    [yY]*)
+        echo -e "${YELLOW}Great! Your terminal should now use Catppuccin Frappe.${RESET}"
+        ;;
+    *)
+        echo -e "${YELLOW}No worries. You can install it using Gogh now.${RESET}"
+        echo -e "${YELLOW}Running installer...${RESET}"
+        bash -c "$(wget -qO- https://git.io/vQgMr)"
+        ;;
+esac
 
 # ------------- IO scheduler ---------------
 # Before 
