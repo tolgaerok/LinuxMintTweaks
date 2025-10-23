@@ -868,6 +868,7 @@ wget -q https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%
 wget -q https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf
 wget -q https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf
 
+mv MesloLGS\ NF\ *.ttf ~/.local/share/fonts/
 fc-cache -fv
 
 sudo mkdir -p /usr/share/fonts/NerdFonts
