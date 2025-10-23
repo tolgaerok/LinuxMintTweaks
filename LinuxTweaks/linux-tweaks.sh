@@ -1,6 +1,6 @@
 #!/bin/bash
 # 23/10/25
-# LinuxTweaks tolga style — logical, surgical, calm... enjoy brother
+# LinuxTweaks tolga style — logical, surgical, calm, brother
 
 real_user=${SUDO_USER:-$(logname)}
 user_home=$(eval echo "~$real_user")
@@ -30,9 +30,11 @@ sudo apt-get install -y \
 echo "👤 detected user: $real_user"
 echo "📂 target directory: $autostart_dir"
 
+# create the autostart dir if missing
 mkdir -p "$autostart_dir"
 chown -R "$real_user:$real_user" "$autostart_dir"
 
+# create the plank autostart file if missing
 if [[ -f "$plank_desktop" ]]; then
     echo "✔️ plank autostart already exists at $plank_desktop brother"
 else
@@ -53,6 +55,7 @@ Hidden=false
 Name[en_AU]=Plank
 X-GNOME-Autostart-Delay=0
 EOF
+
     chown "$real_user:$real_user" "$plank_desktop"
     chmod 644 "$plank_desktop"
     echo "✅ plank autostart file created at $plank_desktop Enjoy"
@@ -350,5 +353,47 @@ sudo sed -i 's/weekly/daily/g' /etc/logrotate.d/rsyslog
 sudo sed -i 's/rotate 4/rotate 1/g' /etc/logrotate.conf
 sudo sed -i 's/weekly/daily/g' /etc/logrotate.conf
 
+# -------------- samba tweaks -------------- 
+echo "👤 detected user: $real_user"
+echo "🏠 user home: $user_home"
+
+# install samba packages
+echo "🌀 updating and installing samba packages..."
+apt update -y
+apt install -y samba samba-common-bin smbclient
+
+# enable and start samba services
+echo "⚙️ enabling and starting samba services..."
+systemctl enable --now smbd nmbd
+systemctl status smbd nmbd --no-pager
+
+# create public share
+share_dir="/srv/samba/public"
+echo "📂 creating public share at $share_dir"
+mkdir -p "$share_dir"
+chown -R "$real_user:$real_user" "$share_dir"
+chmod -R 0777 "$share_dir"
+ls -ld "$share_dir"
+
+# set samba password for real user
+echo "🔑 Please set samba password for: $real_user"
+smbpasswd -a "$real_user"
+
+# ensure permissions and restart services
+chmod 0777 "$share_dir"
+systemctl restart smbd nmbd
+
+# allow firewall access
+echo "🛡️ updating ufw for samba..."
+ufw allow Samba
+
+# test samba configuration
+echo "🧪 testing samba config..."
+testparm
+
+# list shares for verification
+smbclient -L localhost -U "$real_user"
+
+echo "✅ samba setup complete — public share ready at $share_dir"
 
 
