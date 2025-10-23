@@ -8,6 +8,7 @@ file="/etc/initramfs-tools/modules"
 module="zsmalloc"
 
 # -------------- install packages ---------------
+sudo apt update -y
 sudo apt-get install -y \
     7zip-rar adwaita-qt catfish doublecmd-gtk fonts-crosextra-caladea fonts-crosextra-carlito \
     fonts-firacode fonts-noto-unhinted fonts-ubuntu-classic fortune-mod git grub2-theme-mint helix \
@@ -16,7 +17,7 @@ sudo apt-get install -y \
     samba-ad-provision samba-dsdb-modules samba-vfs-modules sublime-merge sublime-text synaptic \
     tdb-tools variety vlc wsdd xanmod-kernel-manager yad fonts-noto-mono fonts-noto-color-emoji
 
-# required kernel flags for zswap + xanmod
+# -------------- required kernel flags for zswap + xanmod ---------------
 params=(
     "zswap.enabled=1"
     "zswap.compressor=lz4"
@@ -305,3 +306,6 @@ sudo sed -i 's/rotate 4/rotate 1/g' /etc/logrotate.d/rsyslog
 sudo sed -i 's/weekly/daily/g' /etc/logrotate.d/rsyslog
 sudo sed -i 's/rotate 4/rotate 1/g' /etc/logrotate.conf
 sudo sed -i 's/weekly/daily/g' /etc/logrotate.conf
+
+
+
