@@ -24,6 +24,10 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
+# -------------- speed things up alittle ---------------
+sudo systemctl disable NetworkManager-wait-online.service
+sudo systemctl mask NetworkManager-wait-online.service
+
 # -------------- Icon setup ---------------
 icon_URL="https://raw.githubusercontent.com/tolgaerok/linuxtweaks/main/MY_PYTHON_APP/images/LinuxTweak.png"
 icon_dir="$user_home/.config"
